@@ -1,90 +1,168 @@
-// ==UserScript==
+// // ==UserScript==
 // @name         Pilota-Scraper
 // @version      0.1
 // @description  Obtain flight data!
 // @author       Michael Mathew
 // @match        *://*.kayak.com/flights*
-// @grant        none
+// @grant       GM_addStyle
 // @run-at       document-idle
 // @inject-into  content
 // ==/UserScript==
+(function ()
+{
+	runScraper();
+
+	// Organize only neccesaary info in csv file
+	var csvData = [
+		['Status', 'DepDate', 'Airline', 'Flight No.', 'Time of Flight', 'ArrAirCode', 'DepAirCode']
+	]
+
+	var flightDetails = document.querySelectorAll('.Flights-Results-FlightLegDetails')
+	var fdLength = flightDetails.length
+	var flightLeg;
+	csvData = getFlightTimeDetails(flightDetails, 0, csvData)
+    console.log(csvData)
+	var moreResultsButton = document.querySelector('.resultsPaginator')
+
+	moreResultsButton.onclick = function ()
+	{
+		setTimeout(() =>
+		{
+			flightDetails = document.querySelectorAll('.Flights-Results-FlightLegDetails')
+			csvData = getFlightTimeDetails(flightDetails, fdLength, csvData)
 
 
+		}, 3000);
+	};
 
-//images on how to run 
-//csv format 
-//unit test
-//speed O(log or O(1))
-//Notes on what happens if website changes 
-//Note how how make use of system 
-//replace for loops woth maps
-//casing
-//indents
-//delete comments all 
-
-//wzWk-price_aTab
-//js-border-container _ia4 _ia5 _ic1 _iCq _kK6 _iCu
-
-//id=JZDCIVFn0Z-5    
-//id="inline-1"   !!!!!!!for each new page   every Base-Horizon---!!!! 
-
-//contains---------details-leg-details
+	var zNode = document.createElement('div');
+	zNode.innerHTML = '<button id="myButton" type="button">' + 'Download Flight Data</button>';
+	zNode.setAttribute('id', 'myContainer');
+	document.body.appendChild(zNode);
 
 
-//section content, header (inside sction)---leg checkbox(inside header),card right 
-///-header---leg checkbox
-//1. Airline Name (ex: Jetblue or AA)---leg checkbox,each card, card right 
-//2. Flight Number (ex: 160)-leg checkbox,card right, plane details
-//3. Departure airport code (ex: JFK)---eg checkbox,card right ,origin
-//4. Arrival airport code (ex: LAX)---leg checkbox,card right , destination
-//5. Departure Date (ex: 05/19/2020)---leg checkbox,class=date(inside content card left),card right,
-//6. Time en route (ex: 5h 41m)---leg checkbox,class=right-column segment-details, duration details()
-//button download
-//docuemtn create elemtn 
-//add listenr download button if exists keep track last
+	var downloadFlights = document.getElementById("myButton")
+	downloadFlights.onclick = function ()
+	{
+		setTimeout(() =>
+		{
+			downloadCSV(csvData)
+		}, 3000);
+	};
 
-
-//flightnumbers, dates, origin destination
-//Flights-Results-FlightLegDetails-------segment-row js-segment(flightnumber)-----date(date)
-//Flights-Results-FlightLegDetails-------Common-Widgets-Checkbox-Checkbox default select-leg-checkbox disable-mouseout-animation size-m js-checkbox-container(Depart/Arrive) 
-//segment-row js-segment(flightnumber)-----planeDetails details-subheading(Airline and flight)
-//segment-row js-segment(flightnumber)--------segmentDuration text-row(time in rout)
-//segment-row js-segment------airport-codes details-heading text-row(dep and arrival code)
-
-
-//every []
-//check Flights-Results-FlightLegDetails common widgets
-//if
-//segment=row get fligthnumber there
-//child segment get date, airline, time in route,departure and arrival code
-(function() {
-    runScraper();
-    var xx= document.querySelectorAll('.Flights-Results-FlightLegDetails')
-    console.log(xx.length)
-
-    for (var i = 0; i < xx.length; i++) {
-
-    var x=xx[i].querySelector('.Common-Widgets-Checkbox-Checkbox.default.select-leg-checkbox.disable-mouseout-animation.size-m.js-checkbox-container').textContent
-    console.log(x)
-    var y=xx[i].querySelector('.date').textContent
-    console.log(y)
-
-
-    var yy=xx[i].querySelector('.segment-row.js-segment')
-    var c=yy.querySelector('.planeDetails.details-subheading').textContent
-    console.log(c)
-    var v=yy.querySelector('.segmentDuration.text-row').textContent
-    console.log(v)
-    var b=yy.querySelector('.airport-codes.details-heading.text-row').textContent
-    console.log(b)
-}
 
 
 
 })();
 
-function runScraper() {
-    // this will get the first card in the kayak search results
-     var bestFlights = document.getElementsByClassName('best-flights-list')
-     console.log(bestFlights);
+
+/* Gets the details of flight and formats code for csv */
+function getFlightTimeDetails(flightDetails, valueOfIndex, csvData)
+{
+	// All flight details
+	for (var i = valueOfIndex; i < flightDetails.length; i++)
+	{
+		var flightLeg = flightDetails[i].querySelectorAll('.segment-row.js-segment')
+        var flight = (flightDetails[i].querySelector('.spec-leg.left').textContent).trim('↵↵↵↵↵↵')
+		for (var j = 0; j < flightLeg.length; j++)
+		{
+			//append each flight row
+			var legOfFlight = getFlightFormat(flightLeg, j,flight)
+
+			csvData = csvData.concat(legOfFlight)
+
+
+		}
+	}
+	return csvData
+
+
+}
+
+/* Gets flight details and formats for csv*/
+function getFlightFormat(flightLeg, j,flightstatus)
+{
+	var depDate = flightLeg[j].querySelector('.date').textContent
+
+	var planeDetails = flightLeg[j].querySelector('.planeDetails.details-subheading').textContent
+	var planeType = planeDetails.split(" · ");
+	var planeTypeArray = planeType[0].split(" ").join("");
+	var flightNo = planeTypeArray.match(/\d+/g);
+	var airlineName = planeTypeArray.match(/[a-zA-Z]+/g);
+
+	var flightDuration = flightLeg[j].querySelector('.segmentDuration.text-row').textContent
+
+	var airportNames = flightLeg[j].querySelector('.airport-codes.details-heading.text-row').textContent
+	var airportNamesArray = airportNames.split("-")
+
+	var airportFirst = airportNamesArray[0].split('(')
+	var airportOriginCode = airportFirst[1].split(')')
+
+	var airportSecond = airportNamesArray[1].split('(')
+	var airportDestinationCode = airportSecond[1].split(')')
+
+    var flight=flightstatus
+    
+    
+
+
+	var leg = [
+		[flight, depDate.trim('↵'), airlineName[0], flightNo[0], flightDuration.trim('↵'), airportOriginCode[0], airportDestinationCode[0]]
+	]
+	return leg
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+function downloadCSV(csvData)
+{
+	var csvContent = csvData[0].join() + '\n';
+	for (var i = 1; i < csvData.length; i++)
+	{
+		csvContent = csvContent + (csvData[i]).join() + '\n';
+	}
+	var link = window.document.createElement("a");
+	link.setAttribute("href", "data:text/csv;charset=utf-8,%EF%BB%BF" + encodeURI(csvContent));
+	link.setAttribute("download", "flights.csv");
+	link.click();
+
+}
+
+
+
+GM_addStyle(`
+    #myContainer {
+      position: "fixed",
+      top: "15%",
+      right: "4%",
+      "z-index": 3,
+      fontWeight: "600",
+      fontSize: "14px",
+      backgroundColor: "#4700cc",
+      color: "white",
+      border: "none",
+      padding: "10px 20px"
+    }
+`);
+
+
+
+function runScraper()
+{
+	// this will get the first card in the kayak search results
+	var bestFlights = document.getElementsByClassName('best-flights-list')
+	console.log(bestFlights);
 }
